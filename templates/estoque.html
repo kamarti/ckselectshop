@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Controle de Estoque</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+</head>
+
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark">
+
+        <div class="container-fluid">
+
+            <a href="/" class="navbar-brand">
+                CK Select Shop
+            </a>
+
+        </div>
+
+    </nav>
+
+    <div class="container mt-5">
+
+        <!-- FORMULÁRIO -->
+
+        <div class="card shadow p-4">
+
+            <h3 class="mb-4">
+                Movimentar Estoque
+            </h3>
+
+            <form
+                action="/estoque/movimentar"
+                method="POST"
+            >
+
+                <div class="row">
+
+                    <div class="col-md-4">
+
+                        <select
+                            name="produto_id"
+                            class="form-control"
+                            required
+                        >
+
+                            <option value="">
+                                Produto
+                            </option>
+
+                            {% for produto in produtos %}
+
+                            <option value="{{ produto.id }}">
+
+                                {{ produto.nome }}
+
+                            </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <select
+                            name="tipo"
+                            class="form-control"
+                            required
+                        >
+
+                            <option value="">
+                                Tipo
+                            </option>
+
+                            <option value="entrada">
+                                Entrada
+                            </option>
+
+                            <option value="saida">
+                                Saída
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <input
+                            type="number"
+                            name="quantidade"
+                            class="form-control"
+                            placeholder="Quantidade"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="col-md-2">
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100"
+                        >
+                            Salvar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+        <!-- HISTÓRICO -->
+
+        <div class="card shadow mt-4 p-4">
+
+            <h3 class="mb-4">
+                Histórico de Movimentações
+            </h3>
+
+            <table class="table table-hover">
+
+                <thead>
+
+                    <tr>
+
+                        <th>ID</th>
+                        <th>Produto</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Data</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for mov in movimentacoes %}
+
+                    <tr>
+
+                        <td>{{ mov.id }}</td>
+
+                        <td>
+                            {{ mov.produto.nome }}
+                        </td>
+
+                        <td>
+
+                            {% if mov.tipo == "entrada" %}
+
+                                <span class="badge bg-success">
+                                    Entrada
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-danger">
+                                    Saída
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {% if mov.tipo == "entrada" %}
+
+                                <span class="text-success">
+                                    +{{ mov.quantidade }}
+                                </span>
+
+                            {% else %}
+
+                                <span class="text-danger">
+                                    -{{ mov.quantidade }}
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {{ mov.data.strftime('%d/%m/%Y %H:%M') }}
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

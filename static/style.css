@@ -1,0 +1,30 @@
+body {
+
+    background-color: #f4f6f9;
+}
+
+
+.card {
+
+    border: none;
+
+    border-radius: 15px;
+}
+
+
+.card h2 {
+
+    font-weight: bold;
+}
+
+
+.navbar {
+
+    padding: 15px;
+}
+
+
+.table {
+
+    vertical-align: middle;
+}
