@@ -1,18 +1,22 @@
 from flask import Flask
 
-from database import db
+from database import configurar_banco, db
 
 
 app = Flask(__name__)
 
-app.secret_key = "erp_loja_secret"
+configurar_banco(app)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "sqlite:///database.db"
+from database import(
+    db,
+    configurar_banco
 )
 
-db.init_app(app)
+import os
 
+app.secret_key = os.getenv(
+    "SECRECT_KEY"
+)
 
 # IMPORTAR MODELS
 from models.produto import Produto
