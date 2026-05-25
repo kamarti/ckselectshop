@@ -1,63 +1,45 @@
 from flask import Flask
+from database import db
 
-from database import configurar_banco, db
-
-
+# CRIAR APP
 app = Flask(__name__)
 
-configurar_banco(app)
+# CONFIGURAÇÕES
+app.config["SECRET_KEY"] = "ckselectshop"
 
-from database import(
-    db,
-    configurar_banco
-)
+# SQLITE
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///banco.db"
 
-import os
+# DESATIVAR WARNING
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-database_url = os.getenv("DATABASE_URL")
+# PASTA UPLOADS
+app.config["UPLOAD_FOLDER"] = "static/uploads"
 
-if database_url:
-    
-    database_url = database_url.replace(
-        "postgres://",
-        "postgresql://",
-        1
-    )
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-
-else:
-    
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///databse.db"
-
-app.secret_key = os.getenv(
-    "SECRECT_KEY"
-)
+# INICIAR BANCO
+db.init_app(app)
 
 # IMPORTAR MODELS
 from models.produto import Produto
 from models.financeiro import Financeiro
-from models.estoque import MovimentacaoEstoque
 from models.venda import Venda
-from models.usuario import Usuario
 from models.pedido import Pedido
 
-
 # IMPORTAR ROTAS
-from routes.auth_routes import *
-from routes.produto_routes import *
-from routes.financeiro_routes import *
-from routes.estoque_routes import *
-from routes.venda_routes import *
-from routes.api_routes import *
-from routes.pedido_routes import *
+import routes.produto_routes
+import routes.financeiro_routes
+import routes.venda_routes
+import routes.pedido_routes
+import routes.auth_routes
 
-
+# CRIAR TABELAS
 with app.app_context():
 
     db.create_all()
 
-
+# RODAR APP
 if __name__ == "__main__":
 
-    app.run(debug=True)
+    app.run(
+        debug=True
+    )
