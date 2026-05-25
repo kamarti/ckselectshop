@@ -7,7 +7,6 @@ from flask import (
 )
 
 from app import app
-
 from database import db
 
 from models.produto import Produto

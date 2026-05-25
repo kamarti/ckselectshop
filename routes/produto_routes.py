@@ -12,7 +12,6 @@ from werkzeug.utils import secure_filename
 import os
 
 from app import app
-
 from database import db
 
 from models.produto import Produto
