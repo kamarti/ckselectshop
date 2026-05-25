@@ -7,7 +7,6 @@ from flask import (
 )
 
 from app import app
-
 from database import db
 
 from models.produto import Produto
@@ -22,7 +21,9 @@ def estoque():
 
         return redirect("/login")
 
-    produtos = Produto.query.all()
+    produtos = Produto.query.order_by(
+        Produto.nome.asc()
+    ).all()
 
     movimentacoes = (
         MovimentacaoEstoque.query
@@ -44,20 +45,71 @@ def estoque():
 )
 def movimentar_estoque():
 
-    produto_id = int(
-        request.form.get("produto_id")
+    if "usuario" not in session:
+
+        return redirect("/login")
+
+    produto_id = request.form.get(
+        "produto_id"
     )
 
-    tipo = request.form.get("tipo")
-
-    quantidade = int(
-        request.form.get("quantidade")
+    tipo = request.form.get(
+        "tipo"
     )
+
+    quantidade = request.form.get(
+        "quantidade"
+    )
+
+    # VALIDAR CAMPOS
+    if not produto_id or not tipo or not quantidade:
+
+        flash("Preencha todos os campos.")
+
+        return redirect("/estoque")
+
+    try:
+
+        produto_id = int(produto_id)
+
+        quantidade = int(quantidade)
+
+    except ValueError:
+
+        flash("Valores inválidos.")
+
+        return redirect("/estoque")
 
     produto = db.session.get(
         Produto,
         produto_id
     )
+
+    # VALIDAR PRODUTO
+    if not produto:
+
+        flash("Produto não encontrado.")
+
+        return redirect("/estoque")
+
+    # VALIDAR TIPO
+    tipos_permitidos = [
+        "entrada",
+        "saida"
+    ]
+
+    if tipo not in tipos_permitidos:
+
+        flash("Tipo de movimentação inválido.")
+
+        return redirect("/estoque")
+
+    # VALIDAR QUANTIDADE
+    if quantidade <= 0:
+
+        flash("Quantidade deve ser maior que zero.")
+
+        return redirect("/estoque")
 
     # ENTRADA
     if tipo == "entrada":
@@ -69,18 +121,26 @@ def movimentar_estoque():
 
         if produto.estoque < quantidade:
 
-            return "Erro: estoque insuficiente"
+            flash("Estoque insuficiente.")
+
+            return redirect("/estoque")
 
         produto.estoque -= quantidade
 
+    # MOVIMENTAÇÃO
     movimentacao = MovimentacaoEstoque(
+
         produto_id=produto_id,
         tipo=tipo,
         quantidade=quantidade
     )
 
-    db.session.add(movimentacao)
+    db.session.add(
+        movimentacao
+    )
 
     db.session.commit()
+
+    flash("Movimentação realizada com sucesso.")
 
     return redirect("/estoque")

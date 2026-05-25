@@ -3,7 +3,8 @@ from flask import (
     request,
     redirect,
     session,
-    flash
+    flash,
+    send_file
 )
 
 from werkzeug.utils import secure_filename
@@ -19,7 +20,8 @@ from models.financeiro import Financeiro
 from models.venda import Venda
 from models.pedido import Pedido
 
-from datetime import datetime
+from reportlab.pdfgen import canvas
+
 
 # HOME
 @app.route("/")
@@ -30,7 +32,7 @@ def home():
 
         return redirect("/login")
 
-    # PRODUTOS
+    # BUSCA
     busca = request.args.get(
         "busca"
     )
@@ -41,16 +43,14 @@ def home():
 
     query = Produto.query
 
-
-    # BUSCA
+    # FILTRO BUSCA
     if busca:
 
         query = query.filter(
             Produto.nome.ilike(
                 f"%{busca}%"
             )
-     )
-
+        )
 
     # FILTRO ESTOQUE BAIXO
     if filtro == "baixo":
@@ -59,7 +59,7 @@ def home():
             Produto.estoque <= 5
         )
 
-
+    # PAGINAÇÃO
     pagina = request.args.get(
         "pagina",
         1,
@@ -73,7 +73,7 @@ def home():
         per_page=10
     )
 
-    # CARDS DASHBOARD
+    # DASHBOARD
     total_produtos = Produto.query.count()
 
     todos_produtos = Produto.query.all()
@@ -109,7 +109,9 @@ def home():
         if registro.tipo == "saida"
     )
 
-    saldo_total = total_entradas - total_saidas
+    saldo_total = (
+        total_entradas - total_saidas
+    )
 
     # VENDAS
     vendas = Venda.query.all()
@@ -118,13 +120,15 @@ def home():
 
     for venda in vendas:
 
-        nome_produto = venda.produto.nome
+        if venda.produto:
 
-        if nome_produto not in produtos_vendidos:
+            nome_produto = venda.produto.nome
 
-            produtos_vendidos[nome_produto] = 0
+            if nome_produto not in produtos_vendidos:
 
-        produtos_vendidos[nome_produto] += venda.quantidade
+                produtos_vendidos[nome_produto] = 0
+
+            produtos_vendidos[nome_produto] += venda.quantidade
 
     nomes_vendas = list(
         produtos_vendidos.keys()
@@ -145,19 +149,20 @@ def home():
         for produto in produtos.items
     ]
 
-    #TOTAL PEDIDOS
+    # PEDIDOS
     total_pedidos = len(vendas)
 
-    #PEDIDOS PENDENTES
     pedidos_pendentes = Pedido.query.filter_by(
         status="Pendente"
     ).count()
 
-    #TICKET MÉDIO
+    # TICKET MÉDIO
     if total_pedidos > 0:
 
-        ticket_medio = saldo_total / total_pedidos
-    
+        ticket_medio = (
+            saldo_total / total_pedidos
+        )
+
     else:
 
         ticket_medio = 0
@@ -184,75 +189,107 @@ def home():
 
         total_pedidos=total_pedidos,
         pedidos_pendentes=pedidos_pendentes,
-        ticket_medio=ticket_medio,
+        ticket_medio=ticket_medio
     )
 
 
 # ADICIONAR PRODUTO
-@app.route("/adicionar", methods=["POST"])
+@app.route(
+    "/adicionar",
+    methods=["POST"]
+)
 def adicionar():
 
-    nome = request.form.get("nome")
+    try:
 
-    preco = float(
-        request.form.get("preco")
-    )
+        nome = request.form.get(
+            "nome"
+        )
 
-    estoque = int(
-        request.form.get("estoque")
-    )
+        preco = float(
+            request.form.get("preco")
+        )
 
-    imagem = request.files.get(
-        "imagem"
-    )
+        estoque = int(
+            request.form.get("estoque")
+        )
 
-    extensoes_permitidas = [
-        "png",
-        "jpg",
-        "jpeg",
-        "webp"
-    ]
+        imagem = request.files.get(
+            "imagem"
+        )
 
-    nome_arquivo = None
+        extensoes_permitidas = [
+            "png",
+            "jpg",
+            "jpeg",
+            "webp"
+        ]
 
-    if imagem and imagem.filename != "":
+        nome_arquivo = None
 
-        extensao = imagem.filename.split(".")[-1].lower()
+        # VALIDAR IMAGEM
+        if imagem and imagem.filename != "":
 
-        if extensao not in extensoes_permitidas:
-
-            flash(
-                "Formato de imagem inválido."
+            extensao = (
+                imagem.filename
+                .split(".")[-1]
+                .lower()
             )
-            return redirect("/")
 
-        nome_arquivo = secure_filename(
-            imagem.filename
+            if extensao not in extensoes_permitidas:
+
+                flash(
+                    "Formato de imagem inválido.",
+                    "danger"
+                )
+
+                return redirect("/")
+
+            nome_arquivo = secure_filename(
+                imagem.filename
+            )
+
+            os.makedirs(
+                "static/uploads",
+                exist_ok=True
+            )
+
+            caminho = os.path.join(
+                "static/uploads",
+                nome_arquivo
+            )
+
+            imagem.save(caminho)
+
+        novo_produto = Produto(
+
+            nome=nome,
+            preco=preco,
+            estoque=estoque,
+            imagem=nome_arquivo
         )
 
-        caminho = os.path.join(
-            "static/uploads",
-            nome_arquivo
+        db.session.add(
+            novo_produto
         )
 
-        os.makedirs(
-            "static/uploads",
-            exist_ok=True
+        db.session.commit()
+
+        flash(
+            "Produto cadastrado com sucesso!",
+            "success"
         )
 
-        imagem.save(caminho)
+    except Exception as erro:
 
-    novo_produto = Produto(
+        db.session.rollback()
 
-        nome=nome,
-        preco=preco,
-        estoque=estoque,
-        imagem=nome_arquivo
-    )
+        print(erro)
 
-    db.session.add(novo_produto)
-
-    db.session.commit()
+        flash(
+            "Erro ao cadastrar produto.",
+            "danger"
+        )
 
     return redirect("/")
 
@@ -261,10 +298,23 @@ def adicionar():
 @app.route("/editar/<int:id>")
 def editar(id):
 
+    if "usuario" not in session:
+
+        return redirect("/login")
+
     produto = db.session.get(
         Produto,
         id
     )
+
+    if not produto:
+
+        flash(
+            "Produto não encontrado.",
+            "danger"
+        )
+
+        return redirect("/")
 
     return render_template(
         "editar.html",
@@ -273,25 +323,57 @@ def editar(id):
 
 
 # ATUALIZAR PRODUTO
-@app.route("/atualizar/<int:id>", methods=["POST"])
+@app.route(
+    "/atualizar/<int:id>",
+    methods=["POST"]
+)
 def atualizar(id):
 
-    produto = db.session.get(
-        Produto,
-        id
-    )
+    try:
 
-    produto.nome = request.form.get("nome")
+        produto = db.session.get(
+            Produto,
+            id
+        )
 
-    produto.preco = float(
-        request.form.get("preco")
-    )
+        if not produto:
 
-    produto.estoque = int(
-        request.form.get("estoque")
-    )
+            flash(
+                "Produto não encontrado.",
+                "danger"
+            )
 
-    db.session.commit()
+            return redirect("/")
+
+        produto.nome = request.form.get(
+            "nome"
+        )
+
+        produto.preco = float(
+            request.form.get("preco")
+        )
+
+        produto.estoque = int(
+            request.form.get("estoque")
+        )
+
+        db.session.commit()
+
+        flash(
+            "Produto atualizado com sucesso!",
+            "success"
+        )
+
+    except Exception as erro:
+
+        db.session.rollback()
+
+        print(erro)
+
+        flash(
+            "Erro ao atualizar produto.",
+            "danger"
+        )
 
     return redirect("/")
 
@@ -300,20 +382,43 @@ def atualizar(id):
 @app.route("/deletar/<int:id>")
 def deletar(id):
 
-    produto = db.session.get(
-        Produto,
-        id
-    )
+    try:
 
-    db.session.delete(produto)
+        produto = db.session.get(
+            Produto,
+            id
+        )
 
-    db.session.commit()
+        if not produto:
+
+            flash(
+                "Produto não encontrado.",
+                "danger"
+            )
+
+            return redirect("/")
+
+        db.session.delete(produto)
+
+        db.session.commit()
+
+        flash(
+            "Produto excluído com sucesso!",
+            "success"
+        )
+
+    except Exception as erro:
+
+        db.session.rollback()
+
+        print(erro)
+
+        flash(
+            "Erro ao excluir produto.",
+            "danger"
+        )
 
     return redirect("/")
-
-from flask import send_file
-
-from reportlab.pdfgen import canvas
 
 
 # GERAR PDF PRODUTOS
@@ -324,44 +429,79 @@ def relatorio_produtos():
 
         return redirect("/login")
 
-    produtos = Produto.query.all()
+    try:
 
-    caminho_pdf = "relatorios/produtos.pdf"
+        produtos = Produto.query.all()
 
-    pdf = canvas.Canvas(caminho_pdf)
+        os.makedirs(
+            "relatorios",
+            exist_ok=True
+        )
 
-    pdf.setFont("Helvetica-Bold", 18)
+        caminho_pdf = (
+            "relatorios/produtos.pdf"
+        )
 
-    pdf.drawString(
-        200,
-        800,
-        "Relatório de Produtos"
-    )
+        pdf = canvas.Canvas(
+            caminho_pdf
+        )
 
-    y = 750
-
-    pdf.setFont("Helvetica", 12)
-
-    for produto in produtos:
-
-        texto = (
-            f"ID: {produto.id} | "
-            f"Produto: {produto.nome} | "
-            f"Preço: R$ {produto.preco} | "
-            f"Estoque: {produto.estoque}"
+        pdf.setFont(
+            "Helvetica-Bold",
+            18
         )
 
         pdf.drawString(
-            50,
-            y,
-            texto
+            180,
+            800,
+            "Relatório de Produtos"
         )
 
-        y -= 25
+        y = 750
 
-    pdf.save()
+        pdf.setFont(
+            "Helvetica",
+            12
+        )
 
-    return send_file(
-        caminho_pdf,
-        as_attachment=True
-    )
+        for produto in produtos:
+
+            texto = (
+                f"ID: {produto.id} | "
+                f"Produto: {produto.nome} | "
+                f"Preço: R$ {produto.preco:.2f} | "
+                f"Estoque: {produto.estoque}"
+            )
+
+            pdf.drawString(
+                50,
+                y,
+                texto
+            )
+
+            y -= 25
+
+            # NOVA PÁGINA
+            if y <= 50:
+
+                pdf.showPage()
+
+                y = 750
+
+        pdf.save()
+
+        return send_file(
+            caminho_pdf,
+            as_attachment=True
+        )
+
+    except Exception as erro:
+
+        print(erro)
+
+        flash(
+            "Erro ao gerar relatório.",
+            "danger"
+        )
+
+        return redirect("/")

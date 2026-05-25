@@ -4,7 +4,6 @@ from flask import (
 )
 
 from app import app
-
 from database import db
 
 from models.produto import Produto
@@ -14,7 +13,9 @@ from models.produto import Produto
 @app.route("/api/produtos")
 def api_produtos():
 
-    produtos = Produto.query.all()
+    produtos = Produto.query.order_by(
+        Produto.id.desc()
+    ).all()
 
     lista_produtos = []
 
@@ -25,11 +26,12 @@ def api_produtos():
             "id": produto.id,
             "nome": produto.nome,
             "preco": produto.preco,
-            "estoque": produto.estoque
+            "estoque": produto.estoque,
+            "imagem": produto.imagem
 
         })
 
-    return jsonify(lista_produtos)
+    return jsonify(lista_produtos), 200
 
 
 # BUSCAR PRODUTO
@@ -44,7 +46,9 @@ def api_produto(id):
     if not produto:
 
         return jsonify({
+
             "erro": "Produto não encontrado"
+
         }), 404
 
     return jsonify({
@@ -52,9 +56,10 @@ def api_produto(id):
         "id": produto.id,
         "nome": produto.nome,
         "preco": produto.preco,
-        "estoque": produto.estoque
+        "estoque": produto.estoque,
+        "imagem": produto.imagem
 
-    })
+    }), 200
 
 
 # CRIAR PRODUTO
@@ -66,21 +71,63 @@ def api_criar_produto():
 
     dados = request.get_json()
 
+    # VALIDAR JSON
+    if not dados:
+
+        return jsonify({
+
+            "erro": "JSON inválido"
+
+        }), 400
+
+    nome = dados.get("nome")
+
+    preco = dados.get("preco")
+
+    estoque = dados.get("estoque")
+
+    # VALIDAR CAMPOS
+    if not nome or preco is None or estoque is None:
+
+        return jsonify({
+
+            "erro": "Campos obrigatórios ausentes"
+
+        }), 400
+
+    try:
+
+        preco = float(preco)
+
+        estoque = int(estoque)
+
+    except ValueError:
+
+        return jsonify({
+
+            "erro": "Preço ou estoque inválido"
+
+        }), 400
+
     novo_produto = Produto(
 
-        nome=dados["nome"],
-        preco=dados["preco"],
-        estoque=dados["estoque"]
-
+        nome=nome,
+        preco=preco,
+        estoque=estoque
     )
 
-    db.session.add(novo_produto)
+    db.session.add(
+        novo_produto
+    )
 
     db.session.commit()
 
     return jsonify({
-        "mensagem": "Produto criado"
-    })
+
+        "mensagem": "Produto criado com sucesso",
+        "id": novo_produto.id
+
+    }), 201
 
 
 # ATUALIZAR PRODUTO
@@ -98,20 +145,68 @@ def api_atualizar_produto(id):
     if not produto:
 
         return jsonify({
+
             "erro": "Produto não encontrado"
+
         }), 404
 
     dados = request.get_json()
 
-    produto.nome = dados["nome"]
-    produto.preco = dados["preco"]
-    produto.estoque = dados["estoque"]
+    # VALIDAR JSON
+    if not dados:
+
+        return jsonify({
+
+            "erro": "JSON inválido"
+
+        }), 400
+
+    nome = dados.get("nome")
+
+    preco = dados.get("preco")
+
+    estoque = dados.get("estoque")
+
+    # ATUALIZAR SOMENTE SE INFORMADO
+    if nome:
+
+        produto.nome = nome
+
+    if preco is not None:
+
+        try:
+
+            produto.preco = float(preco)
+
+        except ValueError:
+
+            return jsonify({
+
+                "erro": "Preço inválido"
+
+            }), 400
+
+    if estoque is not None:
+
+        try:
+
+            produto.estoque = int(estoque)
+
+        except ValueError:
+
+            return jsonify({
+
+                "erro": "Estoque inválido"
+
+            }), 400
 
     db.session.commit()
 
     return jsonify({
-        "mensagem": "Produto atualizado"
-    })
+
+        "mensagem": "Produto atualizado com sucesso"
+
+    }), 200
 
 
 # DELETAR PRODUTO
@@ -129,13 +224,19 @@ def api_deletar_produto(id):
     if not produto:
 
         return jsonify({
+
             "erro": "Produto não encontrado"
+
         }), 404
 
-    db.session.delete(produto)
+    db.session.delete(
+        produto
+    )
 
     db.session.commit()
 
     return jsonify({
-        "mensagem": "Produto deletado"
-    })
+
+        "mensagem": "Produto deletado com sucesso"
+
+    }), 200
