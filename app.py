@@ -14,6 +14,22 @@ from database import(
 
 import os
 
+database_url = os.getenv("DATABASE_URL")
+
+if database_url:
+    
+    database_url = database_url.replace(
+        "postgres://",
+        "postgresql://",
+        1
+    )
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+
+else:
+    
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///databse.db"
+
 app.secret_key = os.getenv(
     "SECRECT_KEY"
 )

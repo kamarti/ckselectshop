@@ -1,7 +1,13 @@
+import datetime
+
+from app import app
+
 from database import db
 
 
 class Pedido(db.Model):
+
+    __tablename__ = "pedidos"
 
     id = db.Column(
         db.Integer,
@@ -9,13 +15,13 @@ class Pedido(db.Model):
     )
 
     cliente = db.Column(
-        db.String(150),
+        db.String(200),
         nullable=False
     )
 
-    produto = db.Column(
-        db.String(150),
-        nullable=False
+    produto_id = db.Column(
+        db.Integer,
+        db.ForeignKey("produtos.id")
     )
 
     quantidade = db.Column(
@@ -31,4 +37,13 @@ class Pedido(db.Model):
     status = db.Column(
         db.String(50),
         default="Pendente"
+    )
+
+    data = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    produto = db.relationship(
+        "Produto"
     )

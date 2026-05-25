@@ -89,7 +89,88 @@
 
     </nav>
 
+        <nav class="mt-4">
+
+        <ul class="pagination justify-content-center">
+
+            {% if produtos.has_prev %}
+
+                <li class="page-item">
+
+                    <a
+                        class="page-link"
+                        href="?pagina={{ produtos.prev_num }}"
+                    >
+                        Anterior
+                    </a>
+
+                </li>
+
+            {% endif %}
+
+            {% for pagina in produtos.iter_pages() %}
+
+                {% if pagina %}
+
+                    <li class="page-item {% if pagina == produtos.page %}active{% endif %}">
+
+                        <a
+                            class="page-link"
+                            href="?pagina={{ pagina }}"
+                        >
+                            {{ pagina }}
+                        </a>
+
+                    </li>
+
+                {% endif %}
+
+            {% endfor %}
+
+            {% if produtos.has_next %}
+
+                <li class="page-item">
+
+                    <a
+                        class="page-link"
+                        href="?pagina={{ produtos.next_num }}"
+                    >
+                        Próxima
+                    </a>
+
+                </li>
+
+            {% endif %}
+
+        </ul>
+
+    </nav>
+
     <div class="container mt-5">
+    
+        {% with mensagens = get_flashed_messages() %}
+
+            {% if mensagens %}
+
+                {% for mensagem in mensagens %}
+
+                    <div class="alert alert-warning alert-dismissible fade show">
+
+                        {{ mensagem }}
+
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                        ></button>
+
+                    </div>
+
+                {% endfor %}
+
+            {% endif %}
+
+        {% endwith %}
 
         <!-- CARDS -->
         <div class="row mb-4">
@@ -193,6 +274,56 @@
 
         </div>
 
+        <!-- PEDIDOS -->
+        <div class="row mb-4">
+
+            <div class="col-md-4">
+
+                <div class="card shadow text-center p-3">
+
+                    <h5>Total Pedidos</h5>
+
+                    <h2>
+                        {{ total_pedidos }}
+                    </h2>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+
+                <div class="card shadow text-center p-3">
+
+                    <h5>Pedidos Pendentes</h5>
+
+                    <h2 class="text-warning">
+                        {{ pedidos_pendentes }}
+                    </h2>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+
+                <div class="card shadow text-center p-3">
+
+                    <h5>Ticket Médio</h5>
+
+                    <h2 class="text-primary">
+
+                        R$
+                        {{ "%.2f"|format(ticket_medio) }}
+
+                    </h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
         <!-- FORMULÁRIO -->
         <div class="card shadow p-4">
 
@@ -279,98 +410,168 @@
                 Produtos cadastrados
             </h2>
 
-            <table class="table table-hover align-middle">
+            <!-- FILTROS -->
+            <form
+                method="GET"
+                action="/"
+                class="row g-2 mb-4"
+            >
 
-                <thead>
+                <div class="col-md-5">
 
-                    <tr>
+                    <input
+                        type="text"
+                        name="busca"
+                        class="form-control"
+                        placeholder="Buscar produto"
+                        value="{{ request.args.get('busca', '') }}"
+                    >
 
-                        <th>ID</th>
-                        <th>Imagem</th>
-                        <th>Nome</th>
-                        <th>Preço</th>
-                        <th>Estoque</th>
-                        <th>Ações</th>
+                </div>
 
-                    </tr>
+                <div class="col-md-3">
 
-                </thead>
+                    <select
+                        name="filtro"
+                        class="form-control"
+                    >
 
-                <tbody>
+                        <option value="">
+                            Todos
+                        </option>
 
-                    {% for produto in produtos %}
+                        <option value="baixo">
+                            Estoque Baixo
+                        </option>
 
-                    <tr>
+                    </select>
 
-                        <td>{{ produto.id }}</td>
+                </div>
 
-                        <td>
+                <div class="col-md-2">
 
-                            {% if produto.imagem %}
+                    <button
+                        type="submit"
+                        class="btn btn-primary w-100"
+                    >
+                        Filtrar
+                    </button>
 
-                                <img
-                                    src="{{ url_for('static', filename='uploads/' + produto.imagem) }}"
-                                    width="60"
-                                    class="rounded"
+                </div>
+
+                <div class="col-md-2">
+
+                    <a
+                        href="/"
+                        class="btn btn-secondary w-100"
+                    >
+                        Limpar filtros
+                    </a>
+
+                </div>
+
+            </form>
+
+            <!-- TABELA RESPONSIVA -->
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Imagem</th>
+                            <th>Nome</th>
+                            <th>Preço</th>
+                            <th>Estoque</th>
+                            <th>Ações</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for produto in produtos.items %}
+
+                        <tr>
+
+                            <td>{{ produto.id }}</td>
+
+                            <td>
+
+                                {% if produto.imagem %}
+
+                                    <img
+                                        src="{{ url_for('static', filename='uploads/' + produto.imagem) }}"
+                                        width="60"
+                                        class="rounded"
+                                    >
+
+                                {% else %}
+
+                                    <span class="text-muted">
+                                        Sem imagem
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>{{ produto.nome }}</td>
+
+                            <td>
+                                R$ {{ "%.2f"|format(produto.preco) }}
+                            </td>
+
+                            <td>
+
+                                {% if produto.estoque <= 5 %}
+
+                                    <span class="badge rounded-pill bg-danger">
+                                        {{ produto.estoque }}
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge rounded-pill bg-success">
+                                        {{ produto.estoque }}
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                <a
+                                    href="/editar/{{ produto.id }}"
+                                    class="btn btn-warning btn-sm"
                                 >
+                                    Editar
+                                </a>
 
-                            {% else %}
-                                <span class="text-muted">
-                                    Sem imagem
-                                </span>
+                                <a
+                                    href="/deletar/{{ produto.id }}"
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Deseja excluir este produto?')"
+                                >
+                                    Excluir
+                                </a>
 
-                            {% endif %}
+                            </td>
 
-                        </td>
+                        </tr>
 
-                        <td>{{ produto.nome }}</td>
+                        {% endfor %}
 
-                        <td>
-                            R$ {{ "%.2f"|format(produto.preco) }}
-                        </td>
+                    </tbody>
 
-                        <td>
-                            {% if produto.estoque <= 5 %}
+                </table>
 
-                                <span class="bagde bg-danger">
-                                    {{ produto.estoque }}  
-                                </span>
-                            
-                            {% else %}
-
-                                <span class="bagde bg-success">
-                                    {{ produto.estoque }}
-                                </span>
-
-                            {% endif %}
-                        
-                        </td>
-
-                        <td>
-
-                            <a 
-                                href="/editar/{{ produto.id }}"
-                                class="btn btn-warning btn-sm"
-                            >
-                                Editar
-                            </a>
-
-                            <a 
-                                href="/deletar/{{ produto.id }}"
-                                class="btn btn-danger btn-sm"
-                            >
-                                Excluir
-                            </a>
-
-                        </td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                </tbody>
-
-            </table>
+            </div>
 
         </div>
 
@@ -472,11 +673,12 @@
                 labels: ['Entradas', 'Saídas'],
 
                 datasets: [{
-
+                    label: 'Financeiro',
                     data: [
                         {{ total_entradas }},
                         {{ total_saidas }}
-                    ]
+                    ],
+                    borderWidth: 1
 
                 }]
 
@@ -500,7 +702,11 @@
 
                 datasets: [{
 
-                    data: {{ quantidade_vendas|tojson }}
+                    label: 'Produtos Vendidos',
+
+                    data: {{ quantidade_vendas|tojson }},
+
+                    borderWidth: 1
 
                 }]
 
@@ -509,6 +715,8 @@
         });
 
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 

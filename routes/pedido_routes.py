@@ -2,24 +2,22 @@ from flask import (
     render_template,
     request,
     redirect,
-    session
+    session,
+    flash
 )
 
-from app import app
-
-from database import db
+from app import app, db
 
 from models.pedido import Pedido
-
 from models.produto import Produto
+from models.venda import Venda
+from models.financeiro import Financeiro
 
 
-# LISTAR PEDIDOS
 @app.route("/pedidos")
 def pedidos():
 
     if "usuario" not in session:
-
         return redirect("/login")
 
     pedidos = Pedido.query.order_by(
@@ -35,12 +33,8 @@ def pedidos():
     )
 
 
-# CRIAR PEDIDO
-@app.route(
-    "/pedidos/criar",
-    methods=["POST"]
-)
-def criar_pedido():
+@app.route("/pedidos/adicionar", methods=["POST"])
+def adicionar_pedido():
 
     cliente = request.form.get(
         "cliente"
@@ -54,8 +48,7 @@ def criar_pedido():
         request.form.get("quantidade")
     )
 
-    produto = db.session.get(
-        Produto,
+    produto = Produto.query.get(
         produto_id
     )
 
@@ -63,44 +56,64 @@ def criar_pedido():
         produto.preco * quantidade
     )
 
-    novo_pedido = Pedido(
+    # REDUZ ESTOQUE
+    produto.estoque -= quantidade
 
+    # PEDIDO
+    novo_pedido = Pedido(
+        
         cliente=cliente,
-        produto=produto.nome,
+        produto_id=produto_id,
         quantidade=quantidade,
         valor_total=valor_total
+    )
 
+    # VENDA
+    nova_venda = Venda(
+        produto_id=produto_id,
+        quantidade=quantidade,
+        valor_total=valor_total
+    )
+
+    # FINANCEIRO
+    financeiro = Financeiro(
+        tipo="entrada",
+        descricao=f"Pedido #{produto.nome}",
+        valor=valor_total
     )
 
     db.session.add(novo_pedido)
+    db.session.add(nova_venda)
+    db.session.add(financeiro)
 
     db.session.commit()
 
     return redirect("/pedidos")
 
+@app.route("/pedidos/status/<int:id>/<status>")
+def atualizar_status_pedido(id, status):
 
-# ALTERAR STATUS
-@app.route(
-    "/pedidos/status/<int:id>"
-)
-def alterar_status(id):
+    pedido = Pedido.query.get(id)
 
-    pedido = db.session.get(
-        Pedido,
-        id
+    pedido.status = status
+
+    db.session.commit()
+
+    return redirect("/pedidos")
+
+@app.route("/pedidos/cancelar/<int:id>")
+def cancelar_pedido(id):
+
+    pedido = Pedido.query.get(id)
+
+    # DEVOLVE ESTOQUE
+    produto = Produto.query.get(
+        pedido.produto_id
     )
 
-    if pedido.status == "Pendente":
+    produto.estoque += pedido.quantidade
 
-        pedido.status = "Pago"
-
-    elif pedido.status == "Pago":
-
-        pedido.status = "Enviado"
-
-    elif pedido.status == "Enviado":
-
-        pedido.status = "Entregue"
+    pedido.status = "Cancelado"
 
     db.session.commit()
 

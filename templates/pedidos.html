@@ -133,7 +133,7 @@
                         <th>Qtd</th>
                         <th>Total</th>
                         <th>Status</th>
-                        <th>Ação</th>
+                        <th>Ações</th>
 
                     </tr>
 
@@ -159,11 +159,77 @@
 
                         <td>
 
-                            <span class="badge bg-primary">
+                    <td>
 
+                        {% if pedido.status == "Pendente" %}
+
+                            <span class="badge bg-warning">
                                 {{ pedido.status }}
-
                             </span>
+
+                        {% elif pedido.status == "Pago" %}
+
+                            <span class="badge bg-primary">
+                                {{ pedido.status }}
+                            </span>
+
+                        {% elif pedido.status == "Enviado" %}
+
+                            <span class="badge bg-info">
+                                {{ pedido.status }}
+                            </span>
+
+                        {% elif pedido.status == "Entregue" %}
+
+                            <span class="badge bg-success">
+                                {{ pedido.status }}
+                            </span>
+
+                        {% else %}
+
+                            <span class="badge bg-danger">
+                                {{ pedido.status }}
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        <div class="d-flex gap-1">
+
+                            <a
+                                href="/pedidos/status/{{ pedido.id }}/Pago"
+                                class="btn btn-primary btn-sm"
+                            >
+                                Pago
+                            </a>
+
+                            <a
+                                href="/pedidos/status/{{ pedido.id }}/Enviado"
+                                class="btn btn-info btn-sm"
+                            >
+                                Enviado
+                            </a>
+
+                            <a
+                                href="/pedidos/status/{{ pedido.id }}/Entregue"
+                                class="btn btn-success btn-sm"
+                            >
+                                Entregue
+                            </a>
+
+                            <a
+                                href="/pedidos/cancelar/{{ pedido.id }}"
+                                class="btn btn-danger btn-sm"
+                            >
+                                Cancelar
+                            </a>
+
+                        </div>
+
+                    </td>
 
                         </td>
 

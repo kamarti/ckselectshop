@@ -2,8 +2,13 @@ from flask import (
     render_template,
     request,
     redirect,
-    session
+    session,
+    flash
 )
+
+from werkzeug.utils import secure_filename
+
+import os
 
 from app import app
 
@@ -12,7 +17,9 @@ from database import db
 from models.produto import Produto
 from models.financeiro import Financeiro
 from models.venda import Venda
+from models.pedido import Pedido
 
+from datetime import datetime
 
 # HOME
 @app.route("/")
@@ -24,26 +31,66 @@ def home():
         return redirect("/login")
 
     # PRODUTOS
-    produtos = Produto.query.order_by(
+    busca = request.args.get(
+        "busca"
+    )
+
+    filtro = request.args.get(
+        "filtro"
+    )
+
+    query = Produto.query
+
+
+    # BUSCA
+    if busca:
+
+        query = query.filter(
+            Produto.nome.ilike(
+                f"%{busca}%"
+            )
+     )
+
+
+    # FILTRO ESTOQUE BAIXO
+    if filtro == "baixo":
+
+        query = query.filter(
+            Produto.estoque <= 5
+        )
+
+
+    pagina = request.args.get(
+        "pagina",
+        1,
+        type=int
+    )
+
+    produtos = query.order_by(
         Produto.id.desc()
-    ).all()
+    ).paginate(
+        page=pagina,
+        per_page=10
+    )
 
     # CARDS DASHBOARD
-    total_produtos = len(produtos)
+    total_produtos = Produto.query.count()
+
+    todos_produtos = Produto.query.all()
 
     total_estoque = sum(
         produto.estoque
-        for produto in produtos
+        for produto in todos_produtos
     )
 
     valor_total_estoque = sum(
         produto.preco * produto.estoque
-        for produto in produtos
+        for produto in todos_produtos
     )
 
     estoque_baixo = len([
         produto
-        for produto in produtos
+        for produto in todos_produtos
         if produto.estoque <= 5
     ])
 
@@ -90,13 +137,30 @@ def home():
     # GRÁFICO ESTOQUE
     nomes_produtos = [
         produto.nome
-        for produto in produtos
+        for produto in produtos.items
     ]
 
     estoques = [
         produto.estoque
-        for produto in produtos
+        for produto in produtos.items
     ]
+
+    #TOTAL PEDIDOS
+    total_pedidos = len(vendas)
+
+    #PEDIDOS PENDENTES
+    pedidos_pendentes = Pedido.query.filter_by(
+        status="Pendente"
+    ).count()
+
+    #TICKET MÉDIO
+    if total_pedidos > 0:
+
+        ticket_medio = saldo_total / total_pedidos
+    
+    else:
+
+        ticket_medio = 0
 
     return render_template(
         "index.html",
@@ -116,7 +180,11 @@ def home():
         saldo_total=saldo_total,
 
         nomes_vendas=nomes_vendas,
-        quantidade_vendas=quantidade_vendas
+        quantidade_vendas=quantidade_vendas,
+
+        total_pedidos=total_pedidos,
+        pedidos_pendentes=pedidos_pendentes,
+        ticket_medio=ticket_medio,
     )
 
 
@@ -134,10 +202,52 @@ def adicionar():
         request.form.get("estoque")
     )
 
+    imagem = request.files.get(
+        "imagem"
+    )
+
+    extensoes_permitidas = [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+    ]
+
+    nome_arquivo = None
+
+    if imagem and imagem.filename != "":
+
+        extensao = imagem.filename.split(".")[-1].lower()
+
+        if extensao not in extensoes_permitidas:
+
+            flash(
+                "Formato de imagem inválido."
+            )
+            return redirect("/")
+
+        nome_arquivo = secure_filename(
+            imagem.filename
+        )
+
+        caminho = os.path.join(
+            "static/uploads",
+            nome_arquivo
+        )
+
+        os.makedirs(
+            "static/uploads",
+            exist_ok=True
+        )
+
+        imagem.save(caminho)
+
     novo_produto = Produto(
+
         nome=nome,
         preco=preco,
-        estoque=estoque
+        estoque=estoque,
+        imagem=nome_arquivo
     )
 
     db.session.add(novo_produto)

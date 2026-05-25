@@ -1,4 +1,6 @@
 from database import db
+db.create_all()
+exit()
 
 class Produto(db.Model):
 
@@ -23,5 +25,5 @@ class Produto(db.Model):
     )
 
     imagem = db.Column(
-        db.String(300)
+        db.String(225)
     )
