@@ -3,6 +3,8 @@ from database import db
 
 class Usuario(db.Model):
 
+    __tablename__ = "usuario"
+
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -15,6 +17,6 @@ class Usuario(db.Model):
     )
 
     senha = db.Column(
-        db.String(300),
+        db.String(255),
         nullable=False
     )

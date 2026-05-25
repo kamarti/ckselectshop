@@ -1,13 +1,19 @@
 from database import db
 from datetime import datetime
 
+
 class Venda(db.Model):
 
-    id = db.Column(db.Integer, primary_key=True)
+    __tablename__ = "venda"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
 
     produto_id = db.Column(
         db.Integer,
-        db.ForeignKey('produto.id'),
+        db.ForeignKey("produto.id"),
         nullable=False
     )
 
@@ -27,6 +33,9 @@ class Venda(db.Model):
     )
 
     produto = db.relationship(
-        'Produto',
-        backref='vendas'
+        "Produto",
+        backref=db.backref(
+            "vendas",
+            lazy=True
+        )
     )

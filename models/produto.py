@@ -1,11 +1,12 @@
 from database import db
-db.create_all()
-exit()
+
 
 class Produto(db.Model):
 
+    __tablename__ = "produto"
+
     id = db.Column(
-        db.Integer, 
+        db.Integer,
         primary_key=True
     )
 

@@ -1,6 +1,4 @@
-import datetime
-
-from app import app
+from datetime import datetime
 
 from database import db
 
@@ -21,7 +19,8 @@ class Pedido(db.Model):
 
     produto_id = db.Column(
         db.Integer,
-        db.ForeignKey("produtos.id")
+        db.ForeignKey("produto.id"),
+        nullable=False
     )
 
     quantidade = db.Column(
@@ -45,5 +44,9 @@ class Pedido(db.Model):
     )
 
     produto = db.relationship(
-        "Produto"
+        "Produto",
+        backref=db.backref(
+            "pedidos",
+            lazy=True
+        )
     )
